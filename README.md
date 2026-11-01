@@ -1,6 +1,7 @@
 # openapi-json-schema
 
 [![Build Status](https://github.com/DerManoMann/openapi-json-schema/actions/workflows/build.yml/badge.svg)](https://github.com/DerManoMann/openapi-json-schema/actions/workflows/build.yml)
+[![Coverage Status](https://coveralls.io/repos/github/DerManoMann/openapi-json-schema/badge.svg)](https://coveralls.io/github/DerManoMann/openapi-json-schema)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Introduction
@@ -17,7 +18,8 @@ PropertyInfo, and with `symfony/serializer` and `symfony/validator` installed, s
 name converters, discriminator maps and validator constraints.
 
 **`symfony/json-schema` is experimental.** It ships with Symfony 8.2 and has no backwards
-compatibility promise yet. This package follows it and is experimental too.
+compatibility promise yet. This package follows it and is experimental too. Once the
+component is stable, this package might move into swagger-php as an optional part.
 
 ## Installation
 
