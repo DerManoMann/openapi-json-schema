@@ -18,6 +18,7 @@ use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\Generics;
 use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\OrderController;
 use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\Ticket;
 use Symfony\Component\JsonSchema\Direction;
+use Symfony\Component\Yaml\Yaml;
 
 final class JsonSchemaResolverTest extends TestCase
 {
@@ -34,7 +35,7 @@ final class JsonSchemaResolverTest extends TestCase
             ->build();
 
         $this->assertTrue($result->isValid());
-        $this->assertStringEqualsFile(__DIR__ . '/Fixtures/orders.yaml', $result->toYaml());
+        $this->assertEquals(Yaml::parseFile(__DIR__ . '/Fixtures/orders.yaml'), $result->toArray());
     }
 
     public function testDeclinesWhatItCannotDescribe(): void
