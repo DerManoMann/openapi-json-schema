@@ -13,9 +13,14 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Radebatz\OpenApi\JsonSchema\JsonSchemaResolver;
 use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\Account;
+use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\BankPayment;
+use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\CardPayment;
+use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\Checkout;
 use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\Envelope;
 use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\Generics;
 use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\OrderController;
+use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\Product;
+use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\Profile;
 use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\Ticket;
 use Symfony\Component\JsonSchema\Direction;
 use Symfony\Component\Yaml\Yaml;
@@ -102,13 +107,60 @@ final class JsonSchemaResolverTest extends TestCase
     }
 
     /**
-     * @param class-string $fqcn
+     * @return iterable<string, array{list<string>, list<string>}>
      */
-    protected function resolve(string $fqcn, ?Direction $direction = null): OA\Schema
+    public static function serializerGroups(): iterable
+    {
+        yield 'none' => [[], ['id', 'display_name', 'password']];
+        yield 'read' => [['read'], ['id', 'display_name']];
+        yield 'write' => [['write'], ['display_name', 'password']];
+    }
+
+    /**
+     * @param list<string> $groups
+     * @param list<string> $expected property names
+     */
+    #[DataProvider('serializerGroups')]
+    public function testSerializerGroupsAndNames(array $groups, array $expected): void
+    {
+        $this->assertSame($expected, array_keys($this->propertyMap($this->resolve(Profile::class, groups: $groups), static fn (OA\Schema $property): mixed => $property->type)));
+    }
+
+    public function testValidatorConstraints(): void
+    {
+        $schema = $this->resolve(Product::class);
+
+        $this->assertSame(['name'], $schema->required);
+        $this->assertSame([
+            'name' => [3, 50, null, null],
+            'quantity' => [null, null, 1, 100],
+        ], $this->propertyMap($schema, static fn (OA\Schema $property): array => [$property->minLength, $property->maxLength, $property->minimum, $property->maximum]));
+    }
+
+    /**
+     * Symfony references each class of the map, and requires the property that tells them apart.
+     */
+    public function testDiscriminatorMap(): void
+    {
+        $payment = $this->propertyMap($this->resolve(Checkout::class), static fn (OA\Schema $property): mixed => $property->anyOf)['payment'];
+
+        $this->assertSame(
+            [[CardPayment::class, ['type']], [BankPayment::class, ['type']]],
+            array_map(static fn (OA\Schema $one): array => [$one->allOf[0]->ref ?? null, $one->required], $payment),
+        );
+
+        $this->assertSame('card', $this->propertyMap($this->resolve(CardPayment::class), static fn (OA\Schema $property): mixed => $property->const)['type']);
+    }
+
+    /**
+     * @param class-string $fqcn
+     * @param list<string> $groups
+     */
+    protected function resolve(string $fqcn, ?Direction $direction = null, array $groups = []): OA\Schema
     {
         $specification = new Specification();
 
-        $this->assertTrue((new JsonSchemaResolver($direction))->resolve($fqcn, new Assembler($specification)));
+        $this->assertTrue((new JsonSchemaResolver($direction, $groups))->resolve($fqcn, new Assembler($specification)));
         $this->assertCount(1, $specification->schemas);
         $this->assertSame($fqcn, $specification->schemas[0]->getClassName());
 

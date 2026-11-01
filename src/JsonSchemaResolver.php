@@ -37,8 +37,9 @@ class JsonSchemaResolver implements ResolverInterface
 
     /**
      * @param Direction|null $direction describe a class as input or output only; with none, one schema describes both through `readOnly` and `writeOnly`
+     * @param list<string>   $groups    the serializer groups every class is described with; with none, every property is described
      */
-    public function __construct(protected ?Direction $direction = null)
+    public function __construct(protected ?Direction $direction = null, protected array $groups = [])
     {
         $this->policy = new RecordingDefinitionPolicy();
         $this->generator = SchemaGenerator::create($this->policy);
@@ -58,7 +59,7 @@ class JsonSchemaResolver implements ResolverInterface
         try {
             $schema = $this->generator->generate(
                 enum_exists($fqcn) ? Type::enum($fqcn) : Type::object($fqcn),
-                new Configuration(dialect: $dialect, direction: $this->direction),
+                new Configuration(dialect: $dialect, groups: $this->groups, direction: $this->direction),
                 $document,
             );
         } catch (ExceptionInterface) {

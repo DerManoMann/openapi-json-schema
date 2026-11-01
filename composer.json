@@ -66,6 +66,12 @@
         "phpstan/phpstan": "^2.1",
         "phpunit/phpunit": "^11.5",
         "rector/rector": "^2.0",
+        "symfony/serializer": "^7.4 || ^8.0",
+        "symfony/validator": "^7.4 || ^8.0",
         "symfony/yaml": "^7.4 || ^8.0"
+    },
+    "suggest": {
+        "symfony/serializer": "To describe serializer groups, serialized names and discriminator maps",
+        "symfony/validator": "To describe validator constraints"
     }
 }

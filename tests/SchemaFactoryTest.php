@@ -43,6 +43,25 @@ final class SchemaFactoryTest extends TestCase
         $this->assertSame(['cat' => '#/components/schemas/Cat'], $schema->discriminator->mapping, 'a mapping is not a $ref');
     }
 
+    /**
+     * swagger-php keeps only some keywords beside a `$ref`, so a ref with any moves into `allOf`.
+     */
+    public function testRefWithKeywords(): void
+    {
+        $factory = new SchemaFactory();
+        $ref = static fn (string $ref): string => 'App\\Cat';
+
+        $schema = $factory->create(['$ref' => '#/components/schemas/Cat', 'required' => ['type'], 'description' => 'A cat'], $ref);
+        $this->assertNull($schema->ref);
+        $this->assertSame(['type'], $schema->required);
+        $this->assertSame('A cat', $schema->description);
+        $this->assertSame(['App\\Cat'], array_map(static fn (OA\Schema $one): mixed => $one->ref, $schema->allOf ?? []));
+
+        $extended = $factory->create(['$ref' => '#/components/schemas/Cat', 'x-internal' => true], $ref);
+        $this->assertSame('App\\Cat', $extended->ref);
+        $this->assertNull($extended->allOf);
+    }
+
     public function testExtensionsAndUnknownKeywords(): void
     {
         $schema = (new SchemaFactory())->create([

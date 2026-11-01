@@ -77,6 +77,31 @@ use Symfony\Component\JsonSchema\Direction;
 new JsonSchemaResolver(Direction::Output);
 ```
 
+### Serializer and validator
+
+`symfony/json-schema` uses the serializer and the validator when they are installed. Nothing needs
+setting up here. With `symfony/serializer`, a schema describes what the serializer writes and reads:
+
+* A `#[SerializedName]` renames the property.
+* A `#[DiscriminatorMap]` becomes an `anyOf` of the mapped classes, each requiring the type property.
+
+To describe only the properties of some serializer groups, pass them to the resolver:
+
+```php
+new JsonSchemaResolver(groups: ['read']);
+```
+
+The groups apply to every class in the document. A property in none of them is left out, as the
+serializer leaves it out.
+
+With `symfony/validator` installed, constraints become keywords: `Length` becomes `minLength` and
+`maxLength`, `Range` becomes `minimum` and `maximum`, and `NotBlank` makes the property required.
+
+**A discriminator map gives a cycle for now.** Each mapped class extends the base class, so
+swagger-php adds the base class's component to the mapped class's `allOf`. The base class's
+component is the `anyOf` of the mapped classes, so the two reference each other. This needs a
+change in swagger-php.
+
 ## License
 
 The openapi-json-schema project is released under the [MIT license](LICENSE).

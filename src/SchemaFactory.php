@@ -46,6 +46,10 @@ class SchemaFactory
      */
     protected function build(string $class, array $values, \Closure $ref): AbstractAttribute
     {
+        if ($class === OA\Schema::class) {
+            $values = $this->refIntoAllOf($values);
+        }
+
         $parameters = $this->parameters($class);
         $args = [];
         $x = [];
@@ -72,6 +76,34 @@ class SchemaFactory
         }
 
         return new $class(...$args);
+    }
+
+    /**
+     * Moves a `$ref` with keywords beside it into `allOf`.
+     *
+     * swagger-php keeps only some keywords beside a `$ref`, and which depends on the OpenAPI version.
+     * Symfony writes `{"$ref": ..., "required": ["type"]}` for each class of a discriminator map.
+     *
+     * @param array<string, mixed> $values
+     *
+     * @return array<string, mixed>
+     */
+    protected function refIntoAllOf(array $values): array
+    {
+        if (!isset($values['$ref'])) {
+            return $values;
+        }
+
+        foreach (array_keys($values) as $keyword) {
+            if ($keyword !== '$ref' && !str_starts_with((string) $keyword, 'x-')) {
+                $values['allOf'] = [['$ref' => $values['$ref']], ...(array) ($values['allOf'] ?? [])];
+                unset($values['$ref']);
+
+                return $values;
+            }
+        }
+
+        return $values;
     }
 
     /**
