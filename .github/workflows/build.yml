@@ -1,0 +1,46 @@
+name: build
+
+on:
+  schedule:
+    - cron: "0 13 * * 1"
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ${{ matrix.operating-system }}
+    env:
+      COMPOSER_AUTH: '{"github-oauth": {"github.com": "${{ secrets.GITHUB_TOKEN }}"}}'
+      COMPOSER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    strategy:
+      fail-fast: true
+      matrix:
+        operating-system: [ ubuntu-latest ]
+        php: [ '8.2', '8.3', '8.4', '8.5' ]
+        dependencies: [ 'lowest', 'highest' ]
+
+    name: PHP ${{ matrix.php }} on ${{ matrix.operating-system }} with ${{ matrix.dependencies }} dependencies
+
+    steps:
+      - uses: actions/checkout@v7
+        name: Checkout repository
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: pcov
+
+      - name: Composer install
+        uses: ramsey/composer-install@v4
+        with:
+          dependency-versions: ${{ matrix.dependencies }}
+
+      - name: PHPUnit + Code coverage
+        run: |
+          mkdir -p build/logs
+          vendor/bin/phpunit --coverage-text --coverage-clover build/logs/clover.xml
