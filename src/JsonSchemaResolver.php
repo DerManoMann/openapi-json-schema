@@ -29,8 +29,6 @@ use Symfony\Component\TypeInfo\Type;
  */
 class JsonSchemaResolver implements ResolverInterface
 {
-    protected RecordingDefinitionPolicy $policy;
-
     protected SchemaGenerator $generator;
 
     protected SchemaFactory $factory;
@@ -41,8 +39,7 @@ class JsonSchemaResolver implements ResolverInterface
      */
     public function __construct(protected ?Direction $direction = null, protected array $groups = [])
     {
-        $this->policy = new RecordingDefinitionPolicy();
-        $this->generator = SchemaGenerator::create($this->policy);
+        $this->generator = SchemaGenerator::create();
         $this->factory = new SchemaFactory();
     }
 
@@ -66,7 +63,7 @@ class JsonSchemaResolver implements ResolverInterface
             return false;
         }
 
-        $classes = $this->policy->classes($document);
+        $classes = $document->getDefinitionClasses();
         $definitions = $schema->getDefinitions();
         $root = (array) $schema->getRoot();
 
