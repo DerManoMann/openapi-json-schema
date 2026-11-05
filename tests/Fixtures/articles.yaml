@@ -1,0 +1,79 @@
+openapi: 3.1.0
+info:
+  title: Articles
+  version: '1.0'
+paths:
+  /articles:
+    get:
+      operationId: 70090bdd6d8c34f024f12c139ee7590f
+      responses:
+        '200':
+          description: 'The articles'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Article-groups.summary'
+  '/articles/{id}':
+    get:
+      operationId: be278c72b78696652f715d3f24e3da29
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 'The article'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Article'
+components:
+  schemas:
+    Editor:
+      type: object
+      description: 'An editor, described by its attributes.'
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+      required:
+        - name
+        - email
+    Article-groups.summary:
+      type: object
+      properties:
+        title:
+          type: string
+        author:
+          $ref: '#/components/schemas/Author-groups.summary'
+        editor:
+          $ref: '#/components/schemas/Editor'
+    Article:
+      type: object
+      properties:
+        title:
+          type: string
+        body:
+          type: string
+        author:
+          $ref: '#/components/schemas/Author'
+        editor:
+          $ref: '#/components/schemas/Editor'
+    Author-groups.summary:
+      type: object
+      properties:
+        name:
+          type: string
+    Author:
+      type: object
+      properties:
+        name:
+          type: string
+        biography:
+          type: string

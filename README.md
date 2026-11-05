@@ -27,7 +27,7 @@ component is stable, this package might move into swagger-php as an optional par
 composer require radebatz/openapi-json-schema
 ```
 
-The package requires swagger-php 7. Until `symfony/json-schema` has a stable release, the
+The package requires swagger-php 7.2 or later. Until `symfony/json-schema` has a stable release, the
 project needs `"minimum-stability": "dev"` and `"prefer-stable": true` in its `composer.json`.
 
 ## Usage
@@ -91,8 +91,8 @@ To describe only the properties of some serializer groups, pass them to the reso
 new JsonSchemaResolver(groups: ['read']);
 ```
 
-The groups apply to every class in the document. A property in none of them is left out, as the
-serializer leaves it out.
+The groups apply to every class in the document, unless a reference asks for others (see below).
+A property in none of them is left out, as the serializer leaves it out.
 
 With `symfony/validator` installed, constraints become keywords: `Length` becomes `minLength` and
 `maxLength`, `Range` becomes `minimum` and `maximum`, and `NotBlank` makes the property required.
@@ -101,6 +101,37 @@ With `symfony/validator` installed, constraints become keywords: `Length` become
 swagger-php adds the base class's component to the mapped class's `allOf`. The base class's
 component is the `anyOf` of the mapped classes, so the two reference each other. This needs a
 change in swagger-php.
+
+### Describing a class more than once
+
+A reference can ask for its own groups or direction with the qualifiers of a `Schema\Ref`:
+
+```php
+new OA\Schema\Ref(ref: Article::class, qualifiers: ['groups' => ['summary']])
+```
+
+The class is then described with these settings instead of the resolver's, as a component of
+its own, next to the one plain references use. Qualifiers left out fall back to the resolver's
+settings.
+
+* **`groups`** takes a list of serializer groups, or one group as a string.
+* **`direction`** takes `input` or `output`.
+
+The classes a qualified class references keep its qualifiers, so `Article` with the `summary`
+group references `Author` with the `summary` group too. swagger-php names each component after
+its key, for example `Article-groups.summary`.
+
+A referenced class with OpenAPI attributes is the exception. It is referenced plain and described
+by its attributes, as anywhere else in the document. To give it the qualifiers too, and describe
+it with the schema Symfony generates, pass:
+
+```php
+new JsonSchemaResolver(qualifyAttributedClasses: true);
+```
+
+A reference that puts qualifiers on a class with attributes itself is described by this resolver,
+since swagger-php's own resolver only handles plain references. A reference with any other
+qualifier is left to the next resolver.
 
 ## License
 
