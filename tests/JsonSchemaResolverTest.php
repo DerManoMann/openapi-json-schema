@@ -8,14 +8,18 @@ use OpenApi\Builder\Mode;
 use OpenApi\Resolver;
 use OpenApi\Spec as OA;
 use OpenApi\Specification;
+use OpenApi\Specification\ComponentKey;
 use OpenApi\Utils\TypedList;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Radebatz\OpenApi\JsonSchema\JsonSchemaResolver;
 use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\Account;
+use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\ArticleController;
+use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\Author;
 use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\BankPayment;
 use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\CardPayment;
 use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\Checkout;
+use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\Editor;
 use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\Envelope;
 use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\Generics;
 use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\OrderController;
@@ -41,6 +45,89 @@ final class JsonSchemaResolverTest extends TestCase
 
         $this->assertTrue($result->isValid());
         $this->assertEquals(Yaml::parseFile(__DIR__ . '/Fixtures/orders.yaml'), $result->toArray());
+    }
+
+    /**
+     * A class with attributes, like `Editor`, is referenced plain from a qualified class and described by its attributes.
+     */
+    public function testDescribesAClassPerReference(): void
+    {
+        $result = $this->buildArticles(new JsonSchemaResolver());
+
+        $this->assertTrue($result->isValid());
+        $this->assertEquals(Yaml::parseFile(__DIR__ . '/Fixtures/articles.yaml'), $result->toArray());
+    }
+
+    public function testQualifiesAttributedClassesWhenAsked(): void
+    {
+        $schemas = $this->buildArticles(new JsonSchemaResolver(qualifyAttributedClasses: true))->toArray()['components']['schemas'];
+
+        $this->assertSame(['$ref' => '#/components/schemas/Editor-groups.summary'], $schemas['Article-groups.summary']['properties']['editor']);
+        $this->assertSame(['type' => 'object', 'properties' => ['name' => ['type' => 'string']]], $schemas['Editor-groups.summary']);
+    }
+
+    public function testAnAttributedClassAlreadyCollectedIsNotCollectedAgain(): void
+    {
+        $result = $this->buildArticles(new JsonSchemaResolver(), Editor::class);
+
+        $this->assertSame(['$ref' => '#/components/schemas/Editor'], $result->toArray()['components']['schemas']['Article-groups.summary']['properties']['editor']);
+        $this->assertCount(1, array_filter($result->specification()->schemas, static fn (OA\Schema $schema): bool => $schema->getClassName() === Editor::class));
+    }
+
+    /**
+     * @return iterable<string, array{array<string, mixed>, list<string>, array<string, array{bool|null, bool|null}>}>
+     */
+    public static function qualifiers(): iterable
+    {
+        yield 'groups' => [['groups' => ['summary']], ['name'], ['name' => [null, null]]];
+        yield 'one group' => [['groups' => 'full'], ['name', 'biography'], ['name' => [null, null], 'biography' => [null, null]]];
+        yield 'direction' => [['direction' => 'output'], ['name', 'id'], ['name' => [null, null], 'id' => [null, null]]];
+    }
+
+    /**
+     * @param array<string, mixed>                       $qualifiers
+     * @param list<string>                               $properties
+     * @param array<string, array{bool|null, bool|null}> $expected   property name => readOnly, writeOnly
+     */
+    #[DataProvider('qualifiers')]
+    public function testReadsTheKeysQualifiers(array $qualifiers, array $properties, array $expected): void
+    {
+        $key = new ComponentKey(isset($qualifiers['direction']) ? Account::class : Author::class, $qualifiers);
+        $specification = new Specification();
+
+        $this->assertTrue((new JsonSchemaResolver())->resolveKey($key, new Assembler($specification)));
+        $this->assertCount(1, $specification->schemas);
+
+        $schema = $specification->schemas[0];
+        $this->assertEquals($key, $schema->getComponentKey());
+        $this->assertSame($properties, array_keys($this->propertyMap($schema, static fn (OA\Schema $property): mixed => null)));
+        $this->assertSame($expected, $this->propertyMap($schema, static fn (OA\Schema $property): array => [$property->readOnly, $property->writeOnly]));
+    }
+
+    public function testAPlainKeyGivesThePlainComponent(): void
+    {
+        $this->assertEquals(new ComponentKey(Author::class), $this->resolve(Author::class, groups: ['summary'])->getComponentKey());
+    }
+
+    /**
+     * @return iterable<string, array{array<string, mixed>}>
+     */
+    public static function unknownQualifiers(): iterable
+    {
+        yield 'other qualifier' => [['version' => 2]];
+        yield 'other direction' => [['direction' => 'sideways']];
+    }
+
+    /**
+     * @param array<string, mixed> $qualifiers
+     */
+    #[DataProvider('unknownQualifiers')]
+    public function testLeavesUnknownQualifiersToTheNextResolver(array $qualifiers): void
+    {
+        $specification = new Specification();
+
+        $this->assertFalse((new JsonSchemaResolver())->resolveKey(new ComponentKey(Author::class, $qualifiers), new Assembler($specification)));
+        $this->assertSame([], $specification->schemas);
     }
 
     public function testDeclinesWhatItCannotDescribe(): void
@@ -150,6 +237,27 @@ final class JsonSchemaResolverTest extends TestCase
         );
 
         $this->assertSame('card', $this->propertyMap($this->resolve(CardPayment::class), static fn (OA\Schema $property): mixed => $property->const)['type']);
+    }
+
+    /**
+     * @param class-string ...$sources more classes to scan
+     */
+    protected function buildArticles(JsonSchemaResolver $jsonSchemaResolver, string ...$sources): Builder\Result
+    {
+        $builder = (new Builder())
+            ->setMode(Mode::SPEC)
+            ->addSource(new \ReflectionClass(ArticleController::class))
+            ->withResolver(static function (Resolver $resolver) use ($jsonSchemaResolver): void {
+                $resolver->withResolvers(static function (TypedList $resolvers) use ($jsonSchemaResolver): void {
+                    $resolvers->add($jsonSchemaResolver);
+                });
+            });
+
+        foreach ($sources as $source) {
+            $builder->addSource(new \ReflectionClass($source));
+        }
+
+        return $builder->build();
     }
 
     /**

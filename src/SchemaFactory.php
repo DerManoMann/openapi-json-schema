@@ -29,7 +29,7 @@ class SchemaFactory
 
     /**
      * @param array<string, mixed>|\ArrayObject<string, mixed> $schema
-     * @param \Closure(string): string                         $ref    maps a `$ref` to what the spec should reference
+     * @param \Closure(string): (string|OA\Schema\Ref)         $ref    maps a `$ref` to what the spec should reference
      */
     public function create(array|\ArrayObject $schema, \Closure $ref): OA\Schema
     {
@@ -40,9 +40,9 @@ class SchemaFactory
     }
 
     /**
-     * @param class-string<AbstractAttribute> $class
-     * @param array<string, mixed>            $values
-     * @param \Closure(string): string        $ref
+     * @param class-string<AbstractAttribute>          $class
+     * @param array<string, mixed>                     $values
+     * @param \Closure(string): (string|OA\Schema\Ref) $ref
      */
     protected function build(string $class, array $values, \Closure $ref): AbstractAttribute
     {
@@ -107,8 +107,8 @@ class SchemaFactory
     }
 
     /**
-     * @param class-string<AbstractAttribute> $class
-     * @param \Closure(string): string        $ref
+     * @param class-string<AbstractAttribute>          $class
+     * @param \Closure(string): (string|OA\Schema\Ref) $ref
      */
     protected function value(string $class, mixed $value, \Closure $ref): mixed
     {
