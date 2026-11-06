@@ -27,27 +27,45 @@ component is stable, this package might move into swagger-php as an optional par
 composer require radebatz/openapi-json-schema
 ```
 
-The package requires swagger-php 7.2 or later. Until `symfony/json-schema` has a stable release, the
+The package requires swagger-php 7.3 or later. Until `symfony/json-schema` has a stable release, the
 project needs `"minimum-stability": "dev"` and `"prefer-stable": true` in its `composer.json`.
 
 ## Usage
 
-`JsonSchemaResolver` is a swagger-php resolver. Add it after swagger-php's own:
+`JsonSchemaPlugin` adds a `JsonSchemaResolver` to the builder, after swagger-php's own resolver:
 
 ```php
 use OpenApi\Builder;
 use OpenApi\Builder\Mode;
-use OpenApi\Resolver;
-use OpenApi\Utils\TypedList;
-use Radebatz\OpenApi\JsonSchema\JsonSchemaResolver;
+use Radebatz\OpenApi\JsonSchema\JsonSchemaPlugin;
 
 $result = (new Builder())
     ->setMode(Mode::SPEC)
     ->addSource('src')
-    ->withResolver(fn (Resolver $resolver) => $resolver->withResolvers(
-        fn (TypedList $resolvers) => $resolvers->add(new JsonSchemaResolver()),
-    ))
+    ->withPlugins([JsonSchemaPlugin::class])
     ->build();
+```
+
+On the command line, the same is `--plugin "Radebatz\OpenApi\JsonSchema\JsonSchemaPlugin"`.
+Plugins are not used in classic mode.
+
+The plugin's settings are the resolver's options, described below: `direction`, `groups` and
+`qualifyAttributedClasses`. A setting it does not know, or a value it cannot use, throws.
+
+```php
+->withPlugins([JsonSchemaPlugin::class => ['direction' => 'output', 'groups' => ['read']]])
+```
+
+To add the resolver yourself, for example to place it elsewhere in the chain:
+
+```php
+use OpenApi\Resolver;
+use OpenApi\Utils\TypedList;
+use Radebatz\OpenApi\JsonSchema\JsonSchemaResolver;
+
+$builder->withResolver(fn (Resolver $resolver) => $resolver->withResolvers(
+    fn (TypedList $resolvers) => $resolvers->add(new JsonSchemaResolver()),
+));
 ```
 
 A class referenced by its name, for example `new OA\Schema(ref: Order::class)`, is then
@@ -69,12 +87,13 @@ described like this:
 
 By default one schema describes a class for both requests and responses, and marks a property
 that can only be read or only be written with `readOnly` or `writeOnly`. To describe classes
-for one direction only, pass it to the resolver:
+for one direction only, set `direction` to `input` or `output`, or a `Direction` case:
 
 ```php
-use Symfony\Component\JsonSchema\Direction;
+JsonSchemaPlugin::class => ['direction' => 'output']
 
-new JsonSchemaResolver(Direction::Output);
+// or, adding the resolver yourself
+new JsonSchemaResolver(Symfony\Component\JsonSchema\Direction::Output);
 ```
 
 ### Serializer and validator
@@ -85,9 +104,12 @@ setting up here. With `symfony/serializer`, a schema describes what the serializ
 * A `#[SerializedName]` renames the property.
 * A `#[DiscriminatorMap]` becomes an `anyOf` of the mapped classes, each requiring the type property.
 
-To describe only the properties of some serializer groups, pass them to the resolver:
+To describe only the properties of some serializer groups, set `groups`:
 
 ```php
+JsonSchemaPlugin::class => ['groups' => ['read']]
+
+// or, adding the resolver yourself
 new JsonSchemaResolver(groups: ['read']);
 ```
 
@@ -123,9 +145,12 @@ its key, for example `Article-groups.summary`.
 
 A referenced class with OpenAPI attributes is the exception. It is referenced plain and described
 by its attributes, as anywhere else in the document. To give it the qualifiers too, and describe
-it with the schema Symfony generates, pass:
+it with the schema Symfony generates, set `qualifyAttributedClasses`:
 
 ```php
+JsonSchemaPlugin::class => ['qualifyAttributedClasses' => true]
+
+// or, adding the resolver yourself
 new JsonSchemaResolver(qualifyAttributedClasses: true);
 ```
 

@@ -18,7 +18,7 @@ use Symfony\Component\TypeInfo\Type;
 /**
  * Describes a referenced class that has no OpenAPI attributes with the schema symfony/json-schema generates for it.
  *
- * Add it after swagger-php's own resolver, so a class with attributes is still described by them:
+ * `JsonSchemaPlugin` adds it. Added by hand, it goes after swagger-php's own resolver, so a class with attributes is still described by them:
  *
  * ```php
  * (new Builder())->withResolver(fn (Resolver $resolver) => $resolver->withResolvers(
