@@ -23,6 +23,7 @@ use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\Editor;
 use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\Envelope;
 use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\Generics;
 use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\OrderController;
+use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\PaymentController;
 use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\Product;
 use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\Profile;
 use Radebatz\OpenApi\JsonSchema\Tests\Fixtures\Ticket;
@@ -237,6 +238,30 @@ final class JsonSchemaResolverTest extends TestCase
         );
 
         $this->assertSame('card', $this->propertyMap($this->resolve(CardPayment::class), static fn (OA\Schema $property): mixed => $property->const)['type']);
+    }
+
+    /**
+     * Symfony describes a mapped class with the base class's properties in it, so swagger-php does not add the base class to its `allOf`, which would reference the base class back.
+     */
+    public function testDiscriminatorMapHasNoCycle(): void
+    {
+        $result = (new Builder())
+            ->setMode(Mode::SPEC)
+            ->addSource(new \ReflectionClass(PaymentController::class))
+            ->withResolver(static function (Resolver $resolver): void {
+                $resolver->withResolvers(static function (TypedList $resolvers): void {
+                    $resolvers->add(new JsonSchemaResolver());
+                });
+            })
+            ->build();
+
+        $this->assertTrue($result->isValid());
+
+        $schemas = $result->toArray()['components']['schemas'];
+        foreach (['CardPayment' => ['type', 'last4', 'amount'], 'BankPayment' => ['type', 'iban', 'amount']] as $name => $properties) {
+            $this->assertArrayNotHasKey('allOf', $schemas[$name]);
+            $this->assertSame($properties, array_keys($schemas[$name]['properties']));
+        }
     }
 
     /**

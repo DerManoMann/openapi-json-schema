@@ -3,6 +3,7 @@
 namespace Radebatz\OpenApi\JsonSchema;
 
 use OpenApi\Assembler;
+use OpenApi\Augmenter\Inheritance;
 use OpenApi\Contracts\KeyResolverInterface;
 use OpenApi\Resolver\Concerns\KeyResolverTrait;
 use OpenApi\Spec as OA;
@@ -111,6 +112,10 @@ class JsonSchemaResolver implements KeyResolverInterface
         });
 
         $component->setReflector(new \ReflectionClass($fqcn));
+
+        // Symfony already put the inherited properties in, so swagger-php must not add the parent again
+        $component->setMeta(Inheritance\Schemas::class, false);
+
         if (!$key->isPlain()) {
             $component->setComponentKey($key);
         }
