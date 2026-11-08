@@ -27,7 +27,7 @@ component is stable, this package might move into swagger-php as an optional par
 composer require radebatz/openapi-json-schema
 ```
 
-The package requires swagger-php 7.3 or later. Until `symfony/json-schema` has a stable release, the
+The package requires swagger-php 7.4 or later. Until `symfony/json-schema` has a stable release, the
 project needs `"minimum-stability": "dev"` and `"prefer-stable": true` in its `composer.json`.
 
 ## Usage
@@ -119,10 +119,9 @@ A property in none of them is left out, as the serializer leaves it out.
 With `symfony/validator` installed, constraints become keywords: `Length` becomes `minLength` and
 `maxLength`, `Range` becomes `minimum` and `maximum`, and `NotBlank` makes the property required.
 
-**A discriminator map gives a cycle for now.** Each mapped class extends the base class, so
-swagger-php adds the base class's component to the mapped class's `allOf`. The base class's
-component is the `anyOf` of the mapped classes, so the two reference each other. This needs a
-change in swagger-php.
+**A discriminator map** makes the base class the `anyOf` of the mapped classes. Each mapped class
+already has the base class's properties in it, so swagger-php does not add the base class to its
+`allOf`.
 
 ### Describing a class more than once
 
